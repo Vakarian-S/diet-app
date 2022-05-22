@@ -5,26 +5,8 @@ services:
     # 127.0.0.1       mongo1 mongo2 mongo3
     image: mongo:latest
     restart: 'no'
-    command: mongod --bind_ip_all --replSet rs0 --port 27017
+    command: mongod --bind_ip_all --port 27017
     ports:
       - '27017:27017'
     volumes:
       - ./volumes/mongodb/db1:/data/db
-
-  mongo2:
-    image: mongo:latest
-    restart: 'no'
-    command: mongod --bind_ip_all --replSet rs0 --port 27018
-    ports:
-      - '27018:27018'
-    volumes:
-      - ./volumes/mongodb/db2:/data/db
-
-  mongo3:
-    image: mongo:latest
-    restart: 'no'
-    command: mongod --bind_ip_all --replSet rs0 --port 27019
-    ports:
-      - '27019:27019'
-    volumes:
-      - ./volumes/mongodb/db3:/data/db

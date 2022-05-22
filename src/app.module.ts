@@ -4,9 +4,11 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import * as winston from 'winston';
 import { FoodTypeModule } from './domain/food-type/food-type.module';
+import { MongooseModule } from '@nestjs/mongoose';
 
 @Module({
   imports: [
+    MongooseModule.forRoot('mongodb://localhost:27017/diet-app'),
     FoodTypeModule,
     WinstonModule.forRoot({
       transports: [
