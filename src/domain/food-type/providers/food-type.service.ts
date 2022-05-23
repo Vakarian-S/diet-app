@@ -51,9 +51,9 @@ export class FoodTypeService {
   async generateDailyMenu(options: DailyMenuOptionsDto): Promise<DailyMenuDto> {
     const context = { context: this.constructor.name, options };
     this.logger.info('Generating daily menu', context);
-    const { sameLunchDinner = false } = options;
+    const { sameLunchDinner = false, doubleSaladPortion = false } = options;
     const firstSnack = await this.generateSnack(SnackTypeEnum.FRUIT_BASED);
-    const lunch = await this.generateLunchDinner();
+    const lunch = await this.generateLunchDinner(doubleSaladPortion);
     const secondSnack = await this.generateSnack(SnackTypeEnum.YOGHURT_BASED);
     const dinner = sameLunchDinner ? lunch : await this.generateLunchDinner();
 
@@ -65,15 +65,16 @@ export class FoodTypeService {
     };
   }
 
-  async generateLunchDinner(): Promise<FoodType[]> {
+  async generateLunchDinner(doubleSaladPortion = false): Promise<FoodType[]> {
     const context = { context: this.constructor.name };
     this.logger.info('Generating Lunch/Dinner', context);
     const meat = await this.getRandomFood(FoodTypeEnum.MEAT, true);
     const sideDish = await this.getRandomFood(FoodTypeEnum.SIDE_DISH);
-    const salad = await this.getRandomFood(FoodTypeEnum.SALAD);
+    const firstSalad = await this.getRandomFood(FoodTypeEnum.SALAD);
+    const secondSalad = doubleSaladPortion ? firstSalad : await this.getRandomFood(FoodTypeEnum.SALAD);
     const freeSalad = await this.getRandomFood(FoodTypeEnum.FREE_SALAD);
     const fruits = await this.getRandomFood(FoodTypeEnum.FRUIT);
-    return [meat, sideDish, salad, freeSalad, fruits];
+    return [meat, sideDish, firstSalad, secondSalad, freeSalad, fruits];
   }
 
   async generateSnack(type: SnackTypeEnum): Promise<FoodType[]> {
@@ -94,7 +95,7 @@ export class FoodTypeService {
   async getRandomFood(type, weighted = false) {
     const foodList = await this.foodTypeRepository.find(
       { type },
-      { lastConsumed: 'asc' },
+      { lastConsumed: 'desc' },
     );
 
     if (!foodList || foodList.length <= 0) {
@@ -118,21 +119,29 @@ export class FoodTypeService {
     sortedList: FoodType[],
     sortedAttribute: string,
   ): FoodType {
-    if (sortedList || sortedList.length <= 0) {
+    if (!sortedList || sortedList.length <= 0) {
       return null;
     }
     const cumulativeWeights = [];
     let currentWeight = 1;
+    let currentCumulativeWeight = 0;
     let previousDate;
+
     for (const food of sortedList) {
-      if (previousDate && food[sortedAttribute] > previousDate) {
+      if (previousDate && food[sortedAttribute] < previousDate) {
         currentWeight += 1;
       }
       previousDate = food[sortedAttribute];
-      cumulativeWeights.push(currentWeight);
+      currentCumulativeWeight += currentWeight;
+      cumulativeWeights.push(currentCumulativeWeight);
     }
     const maxCumulativeWeight = cumulativeWeights[cumulativeWeights.length - 1];
     const randomNumber = Math.floor((maxCumulativeWeight + 1) * Math.random());
-    return cumulativeWeights[randomNumber];
+
+    for (let itemIndex = 0; itemIndex < sortedList.length; itemIndex += 1) {
+      if (cumulativeWeights[itemIndex] >= randomNumber) {
+        return sortedList[itemIndex];
+      }
+    }
   }
 }

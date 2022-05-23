@@ -21,4 +21,9 @@ export class DailyMenuOptionsDto {
   @IsBoolean()
   @Type(() => Boolean)
   sameLunchDinner: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  doubleSaladPortion: boolean;
 }
