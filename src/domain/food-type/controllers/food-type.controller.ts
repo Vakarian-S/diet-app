@@ -1,8 +1,17 @@
-import { Body, Controller, Get, Inject, Post, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Post,
+  Query,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Logger } from 'winston';
 import { FoodTypeService } from '../providers/food-type.service';
 import { FoodTypeDto } from '../dto/food-type.dto';
-
+import { DailyMenuOptionsDto, DailyMenuDto } from '../dto/daily-menu.dto';
 
 @Controller('food-type')
 export class FoodTypeController {
@@ -18,11 +27,23 @@ export class FoodTypeController {
     return this.foodTypeService.getAll();
   }
 
-  @Post()
+  @Get('daily-menu')
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
-  create(@Body() dto: FoodTypeDto,) {
+  getDailyMenu(
+    @Query() dailyMenuDto: DailyMenuOptionsDto,
+  ): Promise<DailyMenuDto> {
     this.logger.info('Logger Ok', { context: this.constructor.name });
-    return this.foodTypeService.create(dto);
+    return this.foodTypeService.generateDailyMenu(dailyMenuDto);
   }
 
+  @Post('daily-menu')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  confirmDailyMenu(@Body() dailyMenuDto: DailyMenuDto) {
+    return this.foodTypeService.confirmDailyMenu(dailyMenuDto);
+  }
+  @Post()
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  create(@Body() dto: FoodTypeDto) {
+    return this.foodTypeService.create(dto);
+  }
 }

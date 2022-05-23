@@ -1,44 +1,138 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Logger } from 'winston';
 import { FoodTypeDto } from '../dto/food-type.dto';
-import { InjectModel } from '@nestjs/mongoose';
 import { FoodType } from '../entities/food-type.model';
-import { Model } from 'mongoose';
-
+import { SnackTypeEnum } from '../enums/snack-type.enum';
+import { FoodTypeEnum } from '../enums/food-type.enum';
+import { DailyMenuOptionsDto, DailyMenuDto } from '../dto/daily-menu.dto';
+import { FoodTypeRepository } from '../repository/food-type.repository';
 
 @Injectable()
 export class FoodTypeService {
   constructor(
-    @InjectModel(FoodType.name) private foodTypeModel: Model<FoodType>,
+    private readonly foodTypeRepository: FoodTypeRepository,
     @Inject('winston')
     private readonly logger: Logger,
   ) {}
 
-  async create(dto: FoodTypeDto) {
-    const context = { context: this.constructor.name, dto };
+  async create(dailyMenuDto: FoodTypeDto) {
+    const context = { context: this.constructor.name, dailyMenuDto };
     this.logger.info('Attempting to create food-type', context);
-    try {
-      return await this.foodTypeModel.create({ ...dto });
-    } catch (error) {
-      if (error.code === 11000) {
-        this.logger.error('food-type already exists', context);
-        const { keyPattern } = error as any;
 
-        let message: string[];
-        if (keyPattern != null) {
-          message = Object.keys(keyPattern).map(
-            (key) => `${key} is duplicated`,
-          );
-        } else {
-          message = ['object is duplicated'];
+    return await this.foodTypeRepository.create({ ...dailyMenuDto });
+  }
+
+  async confirmDailyMenu(dailyMenuDto: DailyMenuDto) {
+    const context = { context: this.constructor.name, dailyMenuDto };
+    this.logger.info('Attempting to confirm daily-menu', context);
+
+    const consumedFoods = new Set();
+    for (const meal of Object.keys(dailyMenuDto)) {
+      for (const food of dailyMenuDto[meal]) {
+        if (food) {
+          consumedFoods.add(food.name);
         }
-        throw new BadRequestException(message);
       }
-      throw error;
     }
+
+    this.logger.info('consumed foods detected', {
+      ...context,
+      consumedFoods: Array.from(consumedFoods),
+    });
+    return this.foodTypeRepository.updateMany({
+      name: Array.from(consumedFoods),
+    });
   }
 
   getAll() {
-    return this.foodTypeModel.find();
+    return this.foodTypeRepository.find();
+  }
+
+  async generateDailyMenu(options: DailyMenuOptionsDto): Promise<DailyMenuDto> {
+    const context = { context: this.constructor.name, options };
+    this.logger.info('Generating daily menu', context);
+    const { sameLunchDinner = false } = options;
+    const firstSnack = await this.generateSnack(SnackTypeEnum.FRUIT_BASED);
+    const lunch = await this.generateLunchDinner();
+    const secondSnack = await this.generateSnack(SnackTypeEnum.YOGHURT_BASED);
+    const dinner = sameLunchDinner ? lunch : await this.generateLunchDinner();
+
+    return {
+      firstSnack,
+      lunch,
+      secondSnack,
+      dinner,
+    };
+  }
+
+  async generateLunchDinner(): Promise<FoodType[]> {
+    const context = { context: this.constructor.name };
+    this.logger.info('Generating Lunch/Dinner', context);
+    const meat = await this.getRandomFood(FoodTypeEnum.MEAT, true);
+    const sideDish = await this.getRandomFood(FoodTypeEnum.SIDE_DISH);
+    const salad = await this.getRandomFood(FoodTypeEnum.SALAD);
+    const freeSalad = await this.getRandomFood(FoodTypeEnum.FREE_SALAD);
+    const fruits = await this.getRandomFood(FoodTypeEnum.FRUIT);
+    return [meat, sideDish, salad, freeSalad, fruits];
+  }
+
+  async generateSnack(type: SnackTypeEnum): Promise<FoodType[]> {
+    const context = { context: this.constructor.name, type };
+    this.logger.info('Generating Snack', context);
+
+    if (type === SnackTypeEnum.FRUIT_BASED) {
+      return [await this.getRandomFood(FoodTypeEnum.FRUIT)];
+    }
+
+    if (type === SnackTypeEnum.YOGHURT_BASED) {
+      const dryFruit = await this.getRandomFood(FoodTypeEnum.DRY_FRUIT);
+      const yoghurt = await this.getRandomFood(FoodTypeEnum.YOGHURT);
+      return [dryFruit, yoghurt];
+    }
+  }
+
+  async getRandomFood(type, weighted = false) {
+    const foodList = await this.foodTypeRepository.find(
+      { type },
+      { lastConsumed: 'asc' },
+    );
+
+    if (!foodList || foodList.length <= 0) {
+      return null;
+    }
+
+    if (weighted) {
+      return this.weightedRandomBySortedList(foodList, 'lastConsumed');
+    } else {
+      const randomNumber = Math.floor(foodList.length * Math.random());
+      return foodList[randomNumber];
+    }
+  }
+
+  /**
+   * Return a weighted random food based on the given sorted list and sorted attribute
+   * @param sortedList List of same-type foods to choose from, already sorted ascending
+   * @param sortedAttribute The attribute from which the list was sorted
+   */
+  weightedRandomBySortedList(
+    sortedList: FoodType[],
+    sortedAttribute: string,
+  ): FoodType {
+    if (sortedList || sortedList.length <= 0) {
+      return null;
+    }
+    const cumulativeWeights = [];
+    let currentWeight = 1;
+    let previousDate;
+    for (const food of sortedList) {
+      if (previousDate && food[sortedAttribute] > previousDate) {
+        currentWeight += 1;
+      }
+      previousDate = food[sortedAttribute];
+      cumulativeWeights.push(currentWeight);
+    }
+    const maxCumulativeWeight = cumulativeWeights[cumulativeWeights.length - 1];
+    const randomNumber = Math.floor((maxCumulativeWeight + 1) * Math.random());
+    return cumulativeWeights[randomNumber];
   }
 }

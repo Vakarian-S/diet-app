@@ -1,4 +1,4 @@
 export enum SnackTypeEnum {
-  FRUIT_BASED,
-  YOGHURT_BASED,
+  FRUIT_BASED = 'fruit-based',
+  YOGHURT_BASED = 'yoghurt-based',
 }
