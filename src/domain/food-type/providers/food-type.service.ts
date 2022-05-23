@@ -52,22 +52,37 @@ export class FoodTypeService {
     const context = { context: this.constructor.name, options };
     this.logger.info('Generating daily menu', context);
     const { sameLunchDinner = false, doubleSaladPortion = false } = options;
+
+    const breakfast = await this.generateBreakfastSupper();
     const firstSnack = await this.generateSnack(SnackTypeEnum.FRUIT_BASED);
     const lunch = await this.generateLunchDinner(doubleSaladPortion);
     const secondSnack = await this.generateSnack(SnackTypeEnum.YOGHURT_BASED);
+    const supper = await this.generateBreakfastSupper();
     const dinner = sameLunchDinner ? lunch : await this.generateLunchDinner();
 
     return {
+      breakfast,
       firstSnack,
       lunch,
-      secondSnack,
+      supper,
       dinner,
+      secondSnack,
     };
+  }
+
+  async generateBreakfastSupper(): Promise<FoodType[]> {
+    const context = { context: this.constructor.name };
+    this.logger.info('Generating Breakfast/Supper', context);
+
+    const breadLike = await this.getRandomFood(FoodTypeEnum.BREAD_LIKE);
+    const dairy = await this.getRandomFood(FoodTypeEnum.DAIRY);
+    return [breadLike, dairy];
   }
 
   async generateLunchDinner(doubleSaladPortion = false): Promise<FoodType[]> {
     const context = { context: this.constructor.name };
     this.logger.info('Generating Lunch/Dinner', context);
+
     const meat = await this.getRandomFood(FoodTypeEnum.MEAT, true);
     const sideDish = await this.getRandomFood(FoodTypeEnum.SIDE_DISH);
     const firstSalad = await this.getRandomFood(FoodTypeEnum.SALAD);

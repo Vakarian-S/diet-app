@@ -4,16 +4,22 @@ import { Type } from 'class-transformer';
 
 export class DailyMenuDto {
   @IsNotEmpty()
+  breakfast: FoodType[];
+
+  @IsNotEmpty()
   firstSnack: FoodType[];
 
   @IsNotEmpty()
   lunch: FoodType[];
 
   @IsNotEmpty()
-  secondSnack: FoodType[];
+  supper: FoodType[];
 
   @IsNotEmpty()
   dinner: FoodType[];
+
+  @IsNotEmpty()
+  secondSnack: FoodType[];
 }
 
 export class DailyMenuOptionsDto {

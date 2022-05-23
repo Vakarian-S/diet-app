@@ -1,5 +1,5 @@
 export enum FoodTypeEnum {
-  BREAD_LIKE = 'break-like',
+  BREAD_LIKE = 'bread-like',
   BREAD_TOPPER = 'bread-topper',
   DAIRY = 'dairy',
   MEAT = 'meat',
